@@ -3,67 +3,34 @@ package pg
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"time"
 
-	"github.com/nasik90/gophkeeper/internal/app/storage"
-
-	"github.com/pressly/goose"
+	stdlibTransactor "github.com/Thiht/transactor/stdlib"
+	"github.com/nasik90/gophkeeper/internal/server/storage"
 )
 
-type Store struct {
-	conn *sql.DB
-}
-
-func NewStore(conn *sql.DB) (*Store, error) {
-	s := &Store{conn: conn}
-	dir := "internal/migrations/pg"
-	// Применение миграций
-	migrationErr := goose.Up(conn, dir)
-	//Откат миграций
-	if migrationErr != nil {
-		err := goose.Down(conn, dir)
-		if err == nil {
-			return s, migrationErr
-		} else {
-			return s, errors.Join(migrationErr, err)
-		}
-	}
-	return s, nil
-}
-
-func (s Store) Close() error {
-	return s.conn.Close()
-}
-
 // UpdateSecret - создает запись в таблице Secrets.
-// Возвращает версию данных пользователя.
-func (s *Store) SaveNewSecret(ctx context.Context, key, value, login string) (int, error) {
+// Возвращает ID созданной записи.
+func (s *Store) SaveNewSecret(ctx context.Context, key, value, login string, creationDate time.Time) (int, error) {
 
 	userID, err := s.getUserID(ctx, login)
 	if err != nil {
 		return 0, err
 	}
 
-	creationDate := time.Now()
+	var id int
 
-	tx, err := s.conn.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
+	row := s.dbGetter(ctx).QueryRowContext(ctx, `INSERT INTO secrets (key, value, user_id, creation_date, updating_date) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		key, value, userID, creationDate, creationDate)
+
+	if row.Err() != nil {
+		return id, row.Err()
 	}
-	defer tx.Rollback()
-
-	if _, err = tx.ExecContext(ctx, `INSERT INTO secrets (key, value, user_id, creation_date, updating_date) VALUES ($1, $2, $3, $4, $5)`,
-		key, value, userID, creationDate, creationDate); err != nil {
-		return 0, err
-	}
-
-	updateVersion, err := storeUserSecretsUpdateVersion(ctx, tx, userID, creationDate)
-	if err != nil {
-		return updateVersion, err
+	if row.Scan(&id) != nil {
+		return id, row.Err()
 	}
 
-	return updateVersion, tx.Commit()
+	return id, nil
 }
 
 // UpdateSecret - обновляет запись в таблице Secrets.
@@ -86,8 +53,8 @@ func (s *Store) UpdateSecret(ctx context.Context, login string, secretData *stor
 	row := tx.QueryRowContext(ctx, `
 		SELECT version_id 
 		FROM secrets
-		WHERE id = $1 FOR UPDATE
-	`, secretData.Id)
+		WHERE user_id = $1 and key = $2 FOR UPDATE
+	`, userID, secretData.Key)
 	if row.Err() != nil {
 		return 0, row.Err()
 	}
@@ -103,32 +70,18 @@ func (s *Store) UpdateSecret(ctx context.Context, login string, secretData *stor
 	versionID = versionID + 1
 	updatingDate := time.Now()
 
-	if _, err = tx.ExecContext(ctx, `UPDATE secrets SET key = $1, value = $2, user_id = $3 , version_id = $4, updating_date = $5, deletion_mark = $6`,
-		secretData.Key, secretData.Value, userID, versionID, updatingDate, secretData.DeletionMark); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE secrets SET value = $1, version_id = $2, updating_date = $3, deletion_mark = $4 WHERE user_id = $5 and key = $6`,
+		secretData.Value, versionID, updatingDate, secretData.DeletionMark, userID, secretData.Key); err != nil {
 		return 0, err
 	}
 
-	updateVersion, err := storeUserSecretsUpdateVersion(ctx, tx, userID, updatingDate)
+	updateVersion, err := delete_storeUserSecretsUpdateVersion(ctx, tx, userID, updatingDate)
 	if err != nil {
 		return updateVersion, err
 	}
 
 	return updateVersion, tx.Commit()
 
-}
-
-func (s *Store) GetSecretData(ctx context.Context, login string, secretID int) (string, string, error) {
-	var key, value string
-	userID, err := s.getUserID(ctx, login)
-	if err != nil {
-		return key, value, err
-	}
-	row := s.conn.QueryRowContext(ctx, `SELECT key, value FROM secrets WHERE id = $1 and user_id = $2`, secretID, userID)
-	if row.Err() != nil {
-		return key, value, row.Err()
-	}
-	err = row.Scan(&key, &value)
-	return key, value, err
 }
 
 // GetSecretData - возвращает список записей таблицы Secrets.
@@ -143,7 +96,7 @@ func (s *Store) GetUserSecretList(ctx context.Context, login string, secretID in
 		return &result, err
 	}
 
-	queryText := `SELECT id, key, value, version_id, creation_date, updating_date, deletion_mark FROM secrets WHERE id = $1 and user_id = $2`
+	queryText := `SELECT key, value, version_id, creation_date, updating_date, deletion_mark FROM secrets WHERE id = $1 and user_id = $2`
 	if !fromDate.IsZero() {
 		queryText = queryText + "updating_date >= $3"
 		rows, err = s.conn.QueryContext(ctx, queryText, secretID, userID, fromDate)
@@ -156,7 +109,7 @@ func (s *Store) GetUserSecretList(ctx context.Context, login string, secretID in
 	}
 	for rows.Next() {
 		s := new(storage.SecretData)
-		if err := rows.Scan(&s.Id, &s.Key, &s.Value, &s.VersionID, &s.CreationDate, &s.UpdatingDate, &s.DeletionMark); err != nil {
+		if err := rows.Scan(&s.Key, &s.Value, &s.VersionID, &s.CreationDate, &s.UpdatingDate, &s.DeletionMark); err != nil {
 			return nil, err
 		}
 		result = append(result, *s)
@@ -168,14 +121,17 @@ func (s *Store) GetUserSecretList(ctx context.Context, login string, secretID in
 	return &result, rows.Close()
 }
 
-func (s *Store) GetUserSecretsUpdateVersion(ctx context.Context, login string) (int, error) {
+func (s *Store) GetUserSecretsVersion(ctx context.Context, login string) (int, error) {
 	var updateVersion int
 	userID, err := s.getUserID(ctx, login)
 	if err != nil {
 		return updateVersion, err
 	}
-
-	row := s.conn.QueryRowContext(ctx, `SELECT update_version FROM users_secrets_update_info WHERE user_id = $1`, userID)
+	queryText := `SELECT update_version FROM users_secrets_update_info WHERE user_id = $1`
+	if stdlibTransactor.IsWithinTransaction(ctx) {
+		queryText += ` FOR UPDATE`
+	}
+	row := s.conn.QueryRowContext(ctx, queryText, userID)
 	if row.Err() != nil {
 		return updateVersion, row.Err()
 	}
@@ -183,7 +139,7 @@ func (s *Store) GetUserSecretsUpdateVersion(ctx context.Context, login string) (
 	return updateVersion, err
 }
 
-func storeUserSecretsUpdateVersion(ctx context.Context, tx *sql.Tx, userID int, updatingDate time.Time) (int, error) {
+func delete_storeUserSecretsUpdateVersion(ctx context.Context, tx *sql.Tx, userID int, updatingDate time.Time) (int, error) {
 
 	var updateVersion int
 
@@ -211,4 +167,22 @@ func storeUserSecretsUpdateVersion(ctx context.Context, tx *sql.Tx, userID int, 
 	}
 
 	return updateVersion, nil
+}
+
+func (s *Store) UpdateUserSecretsVersion(ctx context.Context, login string, newVersion int, updatingDate time.Time) error {
+
+	userID, err := s.getUserID(ctx, login)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.dbGetter(ctx).ExecContext(ctx,
+		`INSERT INTO users_secrets_update_info (user_id, updating_date, update_version)
+		VALUES ($1, $2, $3)
+	 	ON CONFLICT (user_id)
+		DO UPDATE SET updating_date = $2, update_version = $3`,
+		userID, updatingDate, newVersion)
+
+	return err
+
 }
