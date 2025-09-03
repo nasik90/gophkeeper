@@ -25,6 +25,9 @@ import (
 
 func main() {
 	options := parseOptions()
+	if err := logger.Initialize(options.LogLevel); err != nil {
+		panic(err)
+	}
 	store, transactor := initStore(options)
 	service := service.NewService(store, transactor)
 	handler := handler.NewHandler(service)

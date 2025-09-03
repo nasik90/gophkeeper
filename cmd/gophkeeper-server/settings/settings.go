@@ -12,6 +12,7 @@ type Options struct {
 	BaseURL       string `json:"base_url"`
 	DatabaseDSN   string `json:"database_dsn"`
 	Config        string
+	LogLevel      string
 }
 
 // ParseFlags - парсит флаги командной строки или переменные окружения.
@@ -60,7 +61,7 @@ func readConfig(fname string) (Options, error) {
 func fillDefaultOptions(o *Options) {
 	o.ServerAddress = ":8080"
 	o.BaseURL = "http://localhost:8080"
-	//o.LogLevel = "debug"
+	o.LogLevel = "debug"
 	o.DatabaseDSN = "host=localhost user=postgres password=xxxx dbname=gophkeeper sslmode=disable"
 	//o.DatabaseDSN = ""
 }
