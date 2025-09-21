@@ -18,18 +18,14 @@ type Store struct {
 	transactor transactor.Transactor
 }
 
-//	func NewStore(conn *sql.DB) (*Store, error) {
-//		s := &Store{conn: conn}
 func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
 	transactor, dbGetter := stdlibTransactor.NewTransactor(
 		conn,
 		stdlibTransactor.NestedTransactionsSavepoints,
 	)
 	s := &Store{conn: conn, dbGetter: dbGetter, transactor: transactor}
-	//dir := "C:/golang_projects/gophkeeper/internal/migrations/server/pg"
 	fmt.Println(os.Getwd())
-	dir := "/internal/migrations/server/pg"
-	//dir := "C:\golang_project\gophkeeper\internal\migrations\server\pg"
+	dir := "internal/migrations/server/pg"
 	// Применение миграций
 	migrationErr := goose.Up(conn, dir)
 	//Откат миграций

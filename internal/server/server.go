@@ -37,7 +37,10 @@ func (s *Server) RunServer() error {
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/user/register", s.handler.RegisterNewUser())
 		r.Post("/user/login", s.handler.LoginUser())
-		r.Post("/user/loadSecret", middleware.Auth(s.handler.LoadSecret()))
+		r.Post("/secrets/loadSecret", middleware.Auth(s.handler.LoadSecret()))
+		r.Post("/secrets/updateSecret", middleware.Auth(s.handler.UpdateSecret()))
+		r.Get("/secrets/getSecret", middleware.Auth(s.handler.GetSecret()))
+		r.Get("/secrets/getSecrets", middleware.Auth(s.handler.GetSecrets()))
 	})
 	s.Handler = logger.RequestLogger((r.ServeHTTP))
 	var err error

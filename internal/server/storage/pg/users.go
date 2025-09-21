@@ -43,7 +43,7 @@ func (s *Store) UserIsValid(ctx context.Context, login, password string) (bool, 
 	return false, nil
 }
 
-func (s *Store) getUserID(ctx context.Context, login string) (int, error) {
+func (s *Store) GetUserID(ctx context.Context, login string) (int, error) {
 	row := s.dbGetter(ctx).QueryRowContext(ctx, `SELECT id FROM users WHERE login = $1`, login)
 	var userID int
 	if err := row.Scan(&userID); err != nil {

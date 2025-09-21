@@ -3,8 +3,10 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 func (c *Client) Login(login, password string) error {
@@ -40,8 +42,8 @@ func (c *Client) Login(login, password string) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Выполняем запрос
-	client := &http.Client{}
-	response, err := client.Do(req)
+	//client := &http.Client{}
+	response, err := c.Do(req)
 	if err != nil {
 		fmt.Println("Ошибка при выполнении запроса:", err)
 		return err
@@ -50,10 +52,13 @@ func (c *Client) Login(login, password string) error {
 
 	// Проверяем статус-код ответа
 	if response.StatusCode != http.StatusOK {
-		fmt.Println("Ошибка: статус-код", response.StatusCode)
-		return err
+		return errors.New("unexpected status code: " + strconv.Itoa(response.StatusCode))
 	}
 
 	return nil
 
+}
+
+func (c *Client) RegisterNewUser(login, password string) error {
+	return nil
 }

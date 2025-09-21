@@ -1,92 +1,110 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
 
 	"github.com/nasik90/gophkeeper/internal/client/api"
+	"github.com/nasik90/gophkeeper/internal/common/types"
 )
 
+type Store interface {
+	SaveNewSecret(ctx context.Context, secretData types.SecretData) error
+	UpdateSecret(ctx context.Context, secretData types.SecretData) error
+	GetSecret(ctx context.Context, id int) error
+	GetSecretsToken(ctx context.Context) (string, error)
+	SaveSecretsToken(ctx context.Context, token string) error
+}
+
+// Service - структура, которая хранит ссылку на репозиторий, апи клиента и каналы для синхронизации с сервером.
 type Service struct {
-	apiCleint *api.Client
+	apiCleint  *api.Client
+	store      Store
+	recordsNew chan types.SecretData
+	recordsUpd chan types.SecretData
 }
 
-func NewService(apiCleint *api.Client) *Service {
-	return &Service{apiCleint: apiCleint}
+// NewService создает экземпляр объекта типа Service.
+func NewService(apiCleint *api.Client, store Store) *Service {
+	return &Service{apiCleint: apiCleint, store: store, recordsNew: make(chan types.SecretData), recordsUpd: make(chan types.SecretData)}
 }
 
+// Login логиниться.
 func (s *Service) Login(ctx context.Context, login, password string) error {
 
 	return s.apiCleint.Login(login, password)
 
 }
 
+// Login логиниться.
+func (s *Service) RegisterNewUser(ctx context.Context, login, password string) error {
+
+	return s.apiCleint.RegisterNewUser(login, password)
+
+}
+
+// CreateNewSecret создает секрет в локальной БД.
+// После помещает в канал recordsNew для дальнейшей отправки на сервер.
+// В самом начале данные будут зашифрованы.
 func (s *Service) CreateNewSecret(ctx context.Context, key, value, comment string) error {
 
-	// URL для POST-запроса
-	url := "http://localhost:8080/api/user/loadSecret"
+	// // URL для POST-запроса
+	// url := "http://localhost:8080/api/user/loadSecret"
 
-	// Данные для запроса
-	var requestData struct {
-		Key     string `json:"key"`
-		Value   string `json:"value"`
-		Comment string `json:"comment"`
-	}
+	// var requestData types.SecretData
 
-	// Преобразуем данные в JSON
-	jsonData, err := json.Marshal(requestData)
-	if err != nil {
-		fmt.Println("Ошибка при преобразовании в JSON:", err)
-		return err
-	}
+	// requestData.Key = key
+	// requestData.Value = value
+	// requestData.Comment = comment
 
-	// Создаем новый POST-запрос
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
-		return err
-	}
-
-	// Устанавливаем заголовок Content-Type
-	req.Header.Set("Content-Type", "application/json")
-
-	// // Добавляем cookie
-	// cookie := &http.Cookie{
-	// 	Name:  "gophkeeper",
-	// 	Value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjU4MjQ0NTksIlVzZXJJRCI6Im5hc2lrOTAifQ.hpWOJIvMcba8pU2a1gVTV5I1v4k5LyoPG8girT5ih38",
+	// // Преобразуем данные в JSON
+	// jsonData, err := json.Marshal(requestData)
+	// if err != nil {
+	// 	return err
 	// }
-	// req.AddCookie(cookie)
 
-	// // Выполняем запрос
-	// client := &http.Client{}
-	// response, err := client.Do(req)
-	response, err := s.apiCleint.Do(req)
-	if err != nil {
-		fmt.Println("Ошибка при выполнении запроса:", err)
-		return err
-	}
-	defer response.Body.Close() // Закрываем тело ответа после завершения работы с ним
+	// // Создаем новый POST-запрос
+	// req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Проверяем статус-код ответа
-	if response.StatusCode != http.StatusOK {
-		fmt.Println("Ошибка: статус-код", response.StatusCode)
-		return err
-	}
+	// req.Header.Set("Content-Type", "application/json")
+	// response, err := s.apiCleint.Do(req)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer response.Body.Close()
 
-	// Читаем и выводим ответ
-	var responseBody struct {
-		RecordID int `json:"recordID"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
-		fmt.Println("Ошибка при чтении ответа:", err)
-		return err
-	}
+	// if response.StatusCode != http.StatusOK {
+	// 	fmt.Println("Ошибка: статус-код", response.StatusCode)
+	// 	return err
+	// }
 
-	fmt.Println(responseBody)
+	// var responseBody struct {
+	// 	RecordID int `json:"recordID"`
+	// }
+	// if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+	// 	fmt.Println("Ошибка при чтении ответа:", err)
+	// 	return err
+	// }
+
+	// fmt.Println(responseBody)
 
 	return nil
 
+}
+
+// EditSecret редактирует секрет в локальной БД.
+// После помещает в канал recordsUpd для дальнейшей отправки на сервер.
+// В самом начале данные будут зашифрованы.
+func (s *Service) EditSecret(ctx context.Context, ID int, key, value, comment string) error {
+	return nil
+}
+
+func (s *Service) GetSecretsToken(ctx context.Context) (string, error) {
+	return s.store.GetSecretsToken(ctx)
+}
+
+func (s *Service) SaveSecretsToken(ctx context.Context, token string) error {
+	return s.store.SaveSecretsToken(ctx, token)
 }

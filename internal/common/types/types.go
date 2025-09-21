@@ -11,4 +11,5 @@ type SecretData struct {
 	CreationDate time.Time
 	UpdatingDate time.Time
 	DeletionMark bool
+	Comment      string
 }
