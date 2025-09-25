@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"syscall"
 
+	"github.com/nasik90/gophkeeper/internal/common/logger"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/term"
 )
 
@@ -47,9 +50,11 @@ func RegisterCommand() *cobra.Command {
 			}
 
 			// Вызов логики регистрации
-			err := registerUser(username, password)
+			initService()
+			fmt.Println("appService == nil: ", appService == nil)
+			err := appService.RegisterNewUser(context.Background(), username, password)
 			if err != nil {
-				return fmt.Errorf("ошибка регистрации: %w", err)
+				logger.Log.Fatal("register error", zap.Error(err))
 			}
 
 			fmt.Println("✅ Регистрация успешно завершена!")
@@ -89,19 +94,5 @@ func validateCredentials(username, password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("пароль должен содержать минимум 8 символов")
 	}
-	return nil
-}
-
-// registerUser содержит бизнес-логику регистрации пользователя
-// Эта функция должна быть реализована в другом пакете (например, internal/client)
-func registerUser(username, password string) error {
-	// Здесь будет вызов API клиента для регистрации
-	// Пример:
-	// client := auth.NewClient()
-	// return client.Register(context.Background(), username, password)
-
-	// Заглушка для демонстрации
-	fmt.Printf("Регистрируем пользователя: %s\n", username)
-	// Имитация работы - в реальном проекте заменить на вызов API
 	return nil
 }

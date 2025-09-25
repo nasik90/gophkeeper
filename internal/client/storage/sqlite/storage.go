@@ -47,6 +47,11 @@ func (s *Store) GetSecret(ctx context.Context, id int) error {
 	return nil
 }
 
+// GetSecrets получает запись из БД.
+func (s *Store) GetSecrets(ctx context.Context) error {
+	return nil
+}
+
 // GetSecretsToken получает из БД токен для шифровки и дешифровки секретов.
 func (s *Store) GetSecretsToken(ctx context.Context) (string, error) {
 	return "", nil

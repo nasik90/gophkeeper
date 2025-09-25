@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pressly/goose"
-
 	"github.com/Thiht/transactor"
 	stdlibTransactor "github.com/Thiht/transactor/stdlib"
+	"github.com/pressly/goose"
 )
 
 type Store struct {

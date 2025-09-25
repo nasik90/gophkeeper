@@ -1,30 +1,58 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/nasik90/gophkeeper/internal/common/logger"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // LoginCommand возвращает команду для входа.
 func LoginCommand() *cobra.Command {
+	var (
+		username string
+		password string
+	)
+
 	var loginCmd = &cobra.Command{
 		Use:   "login",
 		Short: "Войти в систему",
 		Long:  `Команда login позволяет пользователю аутентифицироваться на сервере.`,
 		Args:  cobra.ExactArgs(0), // Не принимает аргументов
-		Run: func(cmd *cobra.Command, args []string) {
-			// Здесь основная логика команды
-			fmt.Println("Выполняется логин...")
-			// 1. Получить логин/пароль (из флагов, аргументов или интерактивно)
-			// 2. Вызвать метод клиента из internal/client
-			// 3. Сохранить полученный токен
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Если username не указан, запросим его
+			if username == "" {
+				fmt.Print("Введите имя пользователя: ")
+				_, err := fmt.Scanln(&username)
+				if err != nil {
+					return fmt.Errorf("ошибка ввода имени пользователя: %w", err)
+				}
+			}
+
+			// Если пароль не указан флагом, запросим его интерактивно
+			if password == "" {
+				var err error
+				password, err = promptPassword("Введите пароль: ")
+				if err != nil {
+					return fmt.Errorf("ошибка ввода пароля: %w", err)
+				}
+			}
+			initService()
+			err := appService.Login(context.Background(), username, password)
+			if err != nil {
+				logger.Log.Fatal("login error", zap.Error(err))
+			}
+
+			fmt.Println("✅ Аутентификация успешно завершена!")
+			return nil
 		},
 	}
 
 	// Добавляем специфичные для команды login флаги
-	loginCmd.Flags().StringP("username", "u", "", "Имя пользователя")
-	loginCmd.Flags().StringP("password", "p", "", "Пароль")
+	loginCmd.Flags().StringVarP(&username, "username", "u", "", "Имя пользователя")
+	loginCmd.Flags().StringVarP(&password, "password", "p", "", "Пароль для аутентификации (не рекомендуется использовать)")
 	// Можно сделать обязательным
 	// loginCmd.MarkFlagRequired("username")
 

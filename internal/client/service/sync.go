@@ -5,7 +5,9 @@ import "context"
 // SendSecrets отправляет локальные секреты на сервер.
 // На сервер будут отправлены добавленные и измененные на клиенте секреты.
 func (s *Service) SendSecrets(ctx context.Context) error {
-	// Слушает каналы s.recordsNew s.recs.recordsUpd и дергает ручку s.apiCleint.SendSecrets()
+	// Читает из БД записи, необходимые отправить
+	// Отправляет их
+	// Фиксирует в БД серверный айдишник секрета
 	return nil
 }
 

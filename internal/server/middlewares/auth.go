@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/nasik90/gophkeeper/internal/common/constants"
 )
 
 const (
-	tokenExp   = time.Hour * 3000
-	secretKey  = "supersecretkey"
-	cookieName = "gophkeeper"
+	tokenExp  = time.Hour * 3000
+	secretKey = "supersecretkey"
+	//cookieName = "gophkeeper"
 )
 
 type Claims struct {
@@ -28,7 +29,7 @@ func SetAuthCookie(login string, res http.ResponseWriter) error {
 		return err
 	}
 	var authCookieOut http.Cookie
-	authCookieOut.Name = cookieName
+	authCookieOut.Name = constants.CookieName
 	authCookieOut.Value = JWT
 	http.SetCookie(res, &authCookieOut)
 	return nil
@@ -58,7 +59,7 @@ func buildJWTString(login string) (string, error) {
 func Auth(h http.HandlerFunc) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		var login = ""
-		authCookieIn, err := req.Cookie(cookieName)
+		authCookieIn, err := req.Cookie(constants.CookieName)
 		if err == nil {
 			login, err = getLogin(authCookieIn.Value)
 		}
