@@ -10,7 +10,8 @@ CREATE TABLE secrets
     version_id INTEGER DEFAULT 0,
     creation_date text,
     updating_date text,
-    deletion_mark INTEGER DEFAULT 0
+    deletion_mark INTEGER DEFAULT 0,
+    to_send INTEGER DEFAULT 0
 );
 -- +goose StatementEnd
 
