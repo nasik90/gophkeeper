@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Thiht/transactor"
 	types "github.com/nasik90/gophkeeper/internal/common/types"
 )
 
@@ -25,12 +26,13 @@ type Store interface {
 }
 
 type Service struct {
-	store Store
+	store      Store
+	transactor transactor.Transactor
 }
 
 // NewService создает экземпляр объекта типа Service.
-func NewService(store Store) *Service {
-	return &Service{store: store}
+func NewService(store Store, transactor transactor.Transactor) *Service {
+	return &Service{store: store, transactor: transactor}
 }
 
 func (s *Service) RegisterNewUser(ctx context.Context, login, password string) error {
@@ -47,7 +49,7 @@ func (s *Service) LoadSecret(ctx context.Context, SecretData *types.SecretData, 
 	if err != nil {
 		return 0, err
 	}
-	err = s.store.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+	err = s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		creationDate := time.Now()
 		// Сохраним новый секрет
@@ -79,7 +81,7 @@ func (s *Service) UpdateSecret(ctx context.Context, SecretData *types.SecretData
 	if err != nil {
 		return err
 	}
-	err = s.store.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+	err = s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		updatingDate := time.Now()
 		// Сравним версии, если не равны, то вернем ошибку
