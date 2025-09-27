@@ -17,7 +17,7 @@ type Store struct {
 	transactor transactor.Transactor
 }
 
-func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
+func NewStore(conn *sql.DB) (*Store, error) {
 	transactor, dbGetter := stdlibTransactor.NewTransactor(
 		conn,
 		stdlibTransactor.NestedTransactionsSavepoints,
@@ -31,12 +31,12 @@ func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
 	if migrationErr != nil {
 		err := goose.Down(conn, dir)
 		if err == nil {
-			return s, transactor, migrationErr
+			return s, migrationErr
 		} else {
-			return s, transactor, errors.Join(migrationErr, err)
+			return s, errors.Join(migrationErr, err)
 		}
 	}
-	return s, transactor, nil
+	return s, nil
 }
 
 func (s Store) Close() error {

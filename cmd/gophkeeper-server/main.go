@@ -13,7 +13,6 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/Thiht/transactor"
 	"github.com/nasik90/gophkeeper/cmd/gophkeeper-server/settings"
 	"github.com/nasik90/gophkeeper/internal/common/logger"
 	"github.com/nasik90/gophkeeper/internal/server"
@@ -28,8 +27,8 @@ func main() {
 	if err := logger.Initialize(options.LogLevel); err != nil {
 		panic(err)
 	}
-	store, transactor := initStore(options)
-	service := service.NewService(store, transactor)
+	store := initStore(options)
+	service := service.NewService(store)
 	handler := handler.NewHandler(service)
 	server := server.NewServer(handler, options.ServerAddress)
 
@@ -42,10 +41,9 @@ func parseOptions() *settings.Options {
 	return options
 }
 
-func initStore(options *settings.Options) (service.Store, transactor.Transactor) {
+func initStore(options *settings.Options) service.Store {
 	var (
-		store      service.Store
-		transactor transactor.Transactor
+		store service.Store
 	)
 
 	if options.DatabaseDSN != "" {
@@ -53,7 +51,7 @@ func initStore(options *settings.Options) (service.Store, transactor.Transactor)
 		if err != nil {
 			logger.Log.Fatal("open pgx conn", zap.String("DatabaseDSN", options.DatabaseDSN), zap.Error(err))
 		}
-		store, transactor, err = pg.NewStore(conn)
+		store, err = pg.NewStore(conn)
 		if err != nil {
 			logger.Log.Fatal("create pg repo", zap.String("DatabaseDSN", options.DatabaseDSN), zap.Error(err))
 		}
@@ -61,7 +59,7 @@ func initStore(options *settings.Options) (service.Store, transactor.Transactor)
 		logger.Log.Fatal("can not initialize store: db settings are empty")
 	}
 
-	return store, transactor
+	return store
 }
 
 func runServers(server *server.Server, store service.Store) {
