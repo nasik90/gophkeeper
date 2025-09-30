@@ -73,7 +73,7 @@ func (s *Service) validateSecretData(ctx context.Context, secretData *types.Secr
 	}
 	// Сравним версии, если не равны, то вернем ошибку
 	versionID, err := s.store.GetSecretVersion(ctx, userID, secretData.Guid)
-	if err != nil {
+	if err != sql.ErrNoRows && err != nil {
 		return err
 	}
 	if versionID != secretData.VersionID {

@@ -1,14 +1,11 @@
 package api
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/spf13/viper"
 
@@ -17,63 +14,19 @@ import (
 
 func (c *Client) Login(login, password string) error {
 
-	// URL для POST-запроса
 	method := "/api/user/login"
-	url := c.baseURL + method
-
-	// Данные для запроса
-	var requestData struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-	}
-
-	requestData.Login = login
-	requestData.Password = password
-
-	// Преобразуем данные в JSON
-	jsonData, err := json.Marshal(requestData)
-	if err != nil {
-		return errors.New("Ошибка при преобразовании в JSON:" + err.Error())
-	}
-
-	// Создаем новый POST-запрос
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return errors.New("Ошибка при создании запроса:" + err.Error())
-	}
-
-	// Устанавливаем заголовок Content-Type
-	req.Header.Set("Content-Type", "application/json")
-
-	// Выполняем запрос
-	response, err := c.Do(req)
-	if err != nil {
-		return errors.New("Ошибка при выполнении запроса:" + err.Error())
-	}
-	defer response.Body.Close()
-
-	// Проверяем статус-код ответа
-	if response.StatusCode != http.StatusOK {
-		return errors.New("unexpected status code: " + strconv.Itoa(response.StatusCode))
-	}
-
-	for _, cookie := range response.Cookies() {
-		if cookie.Name == constants.CookieName {
-			saveToken(cookie.Value)
-			break
-		}
-	}
-
-	return nil
+	return c.registerLogin(method, login, password)
 
 }
 
 func (c *Client) RegisterNewUser(login, password string) error {
 
-	// URL для POST-запроса
 	method := "/api/user/register"
-	url := c.baseURL + method
+	return c.registerLogin(method, login, password)
 
+}
+
+func (c *Client) registerLogin(method, login, password string) error {
 	// Данные для запроса
 	var requestData struct {
 		Login    string `json:"login"`
@@ -83,35 +36,11 @@ func (c *Client) RegisterNewUser(login, password string) error {
 	requestData.Login = login
 	requestData.Password = password
 
-	// Преобразуем данные в JSON
-	jsonData, err := json.Marshal(requestData)
+	_, err := postJSON(c.baseURL, method, requestData)
 	if err != nil {
-		return errors.New("Ошибка при преобразовании в JSON:" + err.Error())
+		return err
 	}
-
-	// Создаем новый POST-запрос
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return errors.New("Ошибка при создании запроса:" + err.Error())
-	}
-
-	// Устанавливаем заголовок Content-Type
-	req.Header.Set("Content-Type", "application/json")
-
-	// Выполняем запрос
-	response, err := c.Do(req)
-	if err != nil {
-		return errors.New("Ошибка при выполнении запроса:" + err.Error())
-	}
-	defer response.Body.Close()
-
-	// Проверяем статус-код ответа
-	if response.StatusCode != http.StatusOK {
-		return errors.New("unexpected status code: " + strconv.Itoa(response.StatusCode))
-	}
-
 	return nil
-
 }
 
 func saveToken(token string) error {
@@ -155,26 +84,21 @@ func getToken() string {
 	return viper.GetString("jwt_token")
 }
 
-func (c *Client) setToken() error {
-	u, err := url.Parse(c.baseURL)
+func setToken(c *http.Client, baseURL string) error {
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return err
 	}
-	tokenSet := false
-	cookies := c.Jar.Cookies(u)
-	for _, cookie := range cookies {
-		if cookie.Name == constants.CookieName {
-			tokenSet = true
-			break
-		}
+	c.Jar, err = cookiejar.New(nil)
+	if err != nil {
+		return err
 	}
-	if !tokenSet {
-		token := getToken()
-		if token != "" {
-			cookie := http.Cookie{Name: constants.CookieName, Value: token}
-			cookies = append(cookies, &cookie)
-			c.Jar.SetCookies(u, cookies)
-		}
+	cookies := c.Jar.Cookies(u)
+	token := getToken()
+	if token != "" {
+		cookie := http.Cookie{Name: constants.CookieName, Value: token}
+		cookies = append(cookies, &cookie)
+		c.Jar.SetCookies(u, cookies)
 	}
 	return nil
 }

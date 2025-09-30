@@ -13,9 +13,8 @@ import (
 )
 
 type Store struct {
-	conn       *sql.DB
-	dbGetter   stdlibTransactor.DBGetter
-	transactor transactor.Transactor
+	conn     *sql.DB
+	dbGetter stdlibTransactor.DBGetter
 }
 
 func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
@@ -23,7 +22,7 @@ func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
 		conn,
 		stdlibTransactor.NestedTransactionsSavepoints,
 	)
-	s := &Store{conn: conn, dbGetter: dbGetter, transactor: transactor}
+	s := &Store{conn: conn, dbGetter: dbGetter}
 	fmt.Println(os.Getwd())
 	//dir := "internal/migrations/server/pg"
 	cwd, _ := os.Getwd()
