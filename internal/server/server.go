@@ -39,8 +39,7 @@ func (s *Server) RunServer() error {
 		r.Post("/user/login", s.handler.LoginUser())
 		r.Post("/secrets/loadSecret", middleware.Auth(s.handler.LoadSecret()))
 		r.Post("/secrets/updateSecret", middleware.Auth(s.handler.UpdateSecret()))
-		r.Get("/secrets/getSecret", middleware.Auth(s.handler.GetSecret()))
-		r.Get("/secrets/getSecrets", middleware.Auth(s.handler.GetSecrets()))
+		r.Post("/secrets/getSecrets", middleware.Auth(s.handler.GetSecrets()))
 	})
 	s.Handler = logger.RequestLogger((r.ServeHTTP))
 	var err error

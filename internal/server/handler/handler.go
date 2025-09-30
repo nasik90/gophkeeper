@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/nasik90/gophkeeper/internal/common/types"
 	middleware "github.com/nasik90/gophkeeper/internal/server/middlewares"
@@ -14,10 +15,9 @@ import (
 type Service interface {
 	RegisterNewUser(ctx context.Context, user, password string) error
 	UserIsValid(ctx context.Context, login, password string) (bool, error)
-	LoadSecret(ctx context.Context, SecretData *types.SecretData, login string) (int, error)
+	LoadSecret(ctx context.Context, SecretData *types.SecretData, login string) error
 	UpdateSecret(ctx context.Context, SecretData *types.SecretData, login string) error
-	GetSecret(ctx context.Context, id int, login string) (types.SecretData, error)
-	GetSecrets(ctx context.Context, login string, fromVersionID int) ([]types.SecretData, error)
+	GetSecrets(ctx context.Context, login string, fromDate time.Time) (*[]types.SecretData, error)
 }
 
 type Handler struct {
@@ -95,21 +95,15 @@ func (h *Handler) LoadSecret() http.HandlerFunc {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
-		recordID, err := h.service.LoadSecret(ctx, &secretData, login)
+		err := h.service.LoadSecret(ctx, &secretData, login)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var output struct {
-			RecordID int `json:"recordID"`
-		}
-		output.RecordID = recordID
-		outputJSON, err := json.Marshal(output)
 
 		resStatus := http.StatusOK
 		res.Header().Set("content-type", "application/json")
 		res.WriteHeader(resStatus)
-		res.Write(outputJSON)
 	}
 }
 
@@ -134,10 +128,36 @@ func (h *Handler) UpdateSecret() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) GetSecret() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {}
-}
-
 func (h *Handler) GetSecrets() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {}
+	return func(res http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		login := middleware.LoginFromContext(ctx)
+		var inData struct {
+			FromDate time.Time `json:"fromDate"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&inData); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+		secrets, err := h.service.GetSecrets(ctx, login, inData.FromDate)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// var output struct {
+		// 	DataVersion time.Time           `json:"dataVersion"`
+		// 	Secrets     *[]types.SecretData `json:"secrets"`
+		// }
+		// // output.fromDate = fromDate
+		// output.Secrets = secrets
+		outputJSON, err := json.Marshal(secrets)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resStatus := http.StatusOK
+		res.Header().Set("content-type", "application/json")
+		res.WriteHeader(resStatus)
+		res.Write(outputJSON)
+	}
 }

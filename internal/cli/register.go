@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"syscall"
 
+	"github.com/nasik90/gophkeeper/internal/client/app"
 	"github.com/nasik90/gophkeeper/internal/common/logger"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -50,7 +51,7 @@ func RegisterCommand() *cobra.Command {
 			}
 
 			// Вызов логики регистрации
-			initService()
+			appService, _ := app.InitService("")
 			fmt.Println("appService == nil: ", appService == nil)
 			err := appService.RegisterNewUser(context.Background(), username, password)
 			if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Thiht/transactor"
@@ -15,11 +16,11 @@ type Store interface {
 	UserIsValid(ctx context.Context, login, password string) (bool, error)
 	GetUserID(ctx context.Context, login string) (int, error)
 
-	SaveNewSecret(ctx context.Context, secretData *types.SecretData, userID int, creationDate time.Time) (int, error)
+	SaveNewSecret(ctx context.Context, secretData *types.SecretData, userID int, creationDate time.Time) error
 	UpdateSecret(ctx context.Context, userID int, SecretData *types.SecretData, updatingDate time.Time) error
-	GetUserSecretList(ctx context.Context, userID int, secretID int, fromDate time.Time) (*[]types.SecretData, error)
+	GetUserSecretList(ctx context.Context, userID int, fromDate time.Time) (*[]types.SecretData, error)
 	GetUserSecretsVersion(ctx context.Context, userID int) (int, error)
-	GetSecretVersion(ctx context.Context, userID int, secretID int) (int, error)
+	GetSecretVersion(ctx context.Context, userID int, guid string) (int, error)
 	UpdateUserSecretsVersion(ctx context.Context, userID int, newVersion int, updatingDate time.Time) error
 
 	Close() error
@@ -43,21 +44,20 @@ func (s *Service) UserIsValid(ctx context.Context, login, password string) (bool
 	return s.store.UserIsValid(ctx, login, password)
 }
 
-func (s *Service) LoadSecret(ctx context.Context, SecretData *types.SecretData, login string) (int, error) {
-	var recordID int
+func (s *Service) LoadSecret(ctx context.Context, SecretData *types.SecretData, login string) error {
 	userID, err := s.store.GetUserID(ctx, login)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	err = s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		creationDate := time.Now()
 		// Сохраним новый секрет
-		recordID, err = s.store.SaveNewSecret(ctx, SecretData, userID, creationDate)
+		err = s.store.SaveNewSecret(ctx, SecretData, userID, creationDate)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
-		// TODO: сохранение двоичных данных при необходимости
 		// Получим текущую версию данных пользователя
 		userSecretsVersion, err := s.store.GetUserSecretsVersion(ctx, userID)
 		if err != sql.ErrNoRows && err != nil {
@@ -69,12 +69,12 @@ func (s *Service) LoadSecret(ctx context.Context, SecretData *types.SecretData, 
 		return err
 	})
 
-	return recordID, err
+	return err
 
 }
 
 func (s *Service) UpdateSecret(ctx context.Context, SecretData *types.SecretData, login string) error {
-	if SecretData.Id == 0 {
+	if SecretData.Guid == "" {
 		return errors.New("SecredData ID can not be empty")
 	}
 	userID, err := s.store.GetUserID(ctx, login)
@@ -85,7 +85,7 @@ func (s *Service) UpdateSecret(ctx context.Context, SecretData *types.SecretData
 		var err error
 		updatingDate := time.Now()
 		// Сравним версии, если не равны, то вернем ошибку
-		versionID, err := s.store.GetSecretVersion(ctx, userID, SecretData.Id)
+		versionID, err := s.store.GetSecretVersion(ctx, userID, SecretData.Guid)
 		if err != nil {
 			return err
 		}
@@ -93,12 +93,11 @@ func (s *Service) UpdateSecret(ctx context.Context, SecretData *types.SecretData
 			return errors.New("version ID doesn`t match. data was changed or deleted")
 		}
 		SecretData.VersionID++
-		// Сохраним новый секрет
+		// Обновим секрет
 		err = s.store.UpdateSecret(ctx, userID, SecretData, updatingDate)
 		if err != nil {
 			return err
 		}
-		// TODO: сохранение двоичных данных
 		// Получим текущую версию данных пользователя
 		userSecretsVersion, err := s.store.GetUserSecretsVersion(ctx, userID)
 		if err != sql.ErrNoRows && err != nil {
@@ -114,10 +113,11 @@ func (s *Service) UpdateSecret(ctx context.Context, SecretData *types.SecretData
 
 }
 
-func (s *Service) GetSecret(ctx context.Context, id int, login string) (types.SecretData, error) {
-	return types.SecretData{}, nil
-}
-
-func (s *Service) GetSecrets(ctx context.Context, login string, fromVersionID int) ([]types.SecretData, error) {
-	return []types.SecretData{}, nil
+func (s *Service) GetSecrets(ctx context.Context, login string, fromDate time.Time) (*[]types.SecretData, error) {
+	userID, err := s.store.GetUserID(ctx, login)
+	if err != nil {
+		return nil, err
+	}
+	secrets, err := s.store.GetUserSecretList(ctx, userID, fromDate)
+	return secrets, err
 }

@@ -1,8 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE secrets_update_info (
-    updating_date text NOT NULL,
-    update_version INTEGER DEFAULT 0
+    data_version TEXT NOT NULL
 );
 -- +goose StatementEnd
 

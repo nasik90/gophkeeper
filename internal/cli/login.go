@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/nasik90/gophkeeper/internal/client/app"
 	"github.com/nasik90/gophkeeper/internal/common/logger"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -39,7 +40,7 @@ func LoginCommand() *cobra.Command {
 					return fmt.Errorf("ошибка ввода пароля: %w", err)
 				}
 			}
-			initService()
+			appService, _ := app.InitService("")
 			err := appService.Login(context.Background(), username, password)
 			if err != nil {
 				logger.Log.Fatal("login error", zap.Error(err))

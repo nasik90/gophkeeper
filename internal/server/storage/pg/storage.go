@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Thiht/transactor"
 	stdlibTransactor "github.com/Thiht/transactor/stdlib"
@@ -24,7 +25,9 @@ func NewStore(conn *sql.DB) (*Store, transactor.Transactor, error) {
 	)
 	s := &Store{conn: conn, dbGetter: dbGetter, transactor: transactor}
 	fmt.Println(os.Getwd())
-	dir := "internal/migrations/server/pg"
+	//dir := "internal/migrations/server/pg"
+	cwd, _ := os.Getwd()
+	dir := filepath.Join(cwd, "..", "..", "internal", "migrations", "server", "pg")
 	// Применение миграций
 	migrationErr := goose.Up(conn, dir)
 	//Откат миграций
