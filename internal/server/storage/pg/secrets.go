@@ -9,12 +9,21 @@ import (
 	types "github.com/nasik90/gophkeeper/internal/common/types"
 )
 
-// UpdateSecret - создает запись в таблице Secrets.
-// Возвращает ID созданной записи.
-func (s *Store) SaveNewSecret(ctx context.Context, secretData *types.SecretData, userID int, creationDate time.Time) error {
-
-	row := s.dbGetter(ctx).QueryRowContext(ctx, `INSERT INTO secrets (guid, key, value, comment, binary_value, user_id, creation_date, updating_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		secretData.Guid, secretData.Key, secretData.Value, secretData.Comment, secretData.BinaryValue, userID, creationDate, creationDate)
+// LoadSecret - создает/обновляет запись в таблице Secrets.
+func (s *Store) LoadSecret(ctx context.Context, secretData *types.SecretData, userID int) error {
+	qText := `INSERT INTO secrets (guid, key, value, comment, binary_value, user_id, creation_date, updating_date) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (guid)
+			DO UPDATE SET key = $2, value = $3, comment = $4, binary_value = $5, user_id = $6, creation_date = $7, updating_date = $8`
+	row := s.dbGetter(ctx).QueryRowContext(ctx, qText,
+		secretData.Guid,
+		secretData.Key,
+		secretData.Value,
+		secretData.Comment,
+		secretData.BinaryValue,
+		userID,
+		secretData.CreationDate,
+		secretData.UpdatingDate)
 
 	if row.Err() != nil {
 		return row.Err()
@@ -23,18 +32,8 @@ func (s *Store) SaveNewSecret(ctx context.Context, secretData *types.SecretData,
 	return nil
 }
 
-// UpdateSecret - обновляет запись в таблице Secrets.
-func (s *Store) UpdateSecret(ctx context.Context, userID int, secretData *types.SecretData, updatingDate time.Time) error {
-
-	_, err := s.dbGetter(ctx).ExecContext(ctx, `UPDATE secrets SET key = $1, value = $2, version_id = $3, comment = $4, binary_value = $5, updating_date = $6, deletion_mark = $7 WHERE user_id = $8 and guid = $9`,
-		secretData.Key, secretData.Value, secretData.VersionID, secretData.Comment, secretData.BinaryValue, updatingDate, secretData.DeletionMark, userID, secretData.Guid)
-
-	return err
-
-}
-
 // GetUserSecretList - возвращает список записей таблицы Secrets.
-// Если передать заполненный fromDate, то вернет записи, обновленные с указанной даты
+// Если передать заполненный fromDate, то вернет записи, обновленные с указанной даты.
 func (s *Store) GetUserSecretList(ctx context.Context, userID int, fromDate time.Time) (*[]types.SecretData, error) {
 	var (
 		result []types.SecretData
@@ -67,6 +66,7 @@ func (s *Store) GetUserSecretList(ctx context.Context, userID int, fromDate time
 	return &result, rows.Close()
 }
 
+// GetUserSecretsVersion - получает текущую версию данных секретов пользователя.
 func (s *Store) GetUserSecretsVersion(ctx context.Context, userID int) (int, error) {
 	var updateVersion int
 	queryText := `SELECT update_version FROM users_secrets_update_info WHERE user_id = $1`
@@ -81,6 +81,7 @@ func (s *Store) GetUserSecretsVersion(ctx context.Context, userID int) (int, err
 	return updateVersion, err
 }
 
+// GetSecretVersion - получает текущую версию данных секретА пользователя.
 func (s *Store) GetSecretVersion(ctx context.Context, userID int, guid string) (int, error) {
 	var versionID int
 	queryText := `SELECT version_id FROM secrets WHERE user_id = $1 and guid = $2 `
@@ -95,6 +96,7 @@ func (s *Store) GetSecretVersion(ctx context.Context, userID int, guid string) (
 	return versionID, err
 }
 
+// UpdateUserSecretsVersion - обновляет версию данных секретов пользователя.
 func (s *Store) UpdateUserSecretsVersion(ctx context.Context, userID int, newVersion int, updatingDate time.Time) error {
 
 	_, err := s.dbGetter(ctx).ExecContext(ctx,

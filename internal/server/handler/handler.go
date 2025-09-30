@@ -16,7 +16,6 @@ type Service interface {
 	RegisterNewUser(ctx context.Context, user, password string) error
 	UserIsValid(ctx context.Context, login, password string) (bool, error)
 	LoadSecret(ctx context.Context, SecretData *types.SecretData, login string) error
-	UpdateSecret(ctx context.Context, SecretData *types.SecretData, login string) error
 	GetSecrets(ctx context.Context, login string, fromDate time.Time) (*[]types.SecretData, error)
 }
 
@@ -107,27 +106,6 @@ func (h *Handler) LoadSecret() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) UpdateSecret() http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		login := middleware.LoginFromContext(ctx)
-		var secretData types.SecretData
-		if err := json.NewDecoder(req.Body).Decode(&secretData); err != nil {
-			http.Error(res, err.Error(), http.StatusBadRequest)
-			return
-		}
-		err := h.service.UpdateSecret(ctx, &secretData, login)
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		resStatus := http.StatusOK
-		res.Header().Set("content-type", "application/json")
-		res.WriteHeader(resStatus)
-	}
-}
-
 func (h *Handler) GetSecrets() http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -144,12 +122,6 @@ func (h *Handler) GetSecrets() http.HandlerFunc {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// var output struct {
-		// 	DataVersion time.Time           `json:"dataVersion"`
-		// 	Secrets     *[]types.SecretData `json:"secrets"`
-		// }
-		// // output.fromDate = fromDate
-		// output.Secrets = secrets
 		outputJSON, err := json.Marshal(secrets)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)

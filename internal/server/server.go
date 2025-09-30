@@ -38,16 +38,10 @@ func (s *Server) RunServer() error {
 		r.Post("/user/register", s.handler.RegisterNewUser())
 		r.Post("/user/login", s.handler.LoginUser())
 		r.Post("/secrets/loadSecret", middleware.Auth(s.handler.LoadSecret()))
-		r.Post("/secrets/updateSecret", middleware.Auth(s.handler.UpdateSecret()))
 		r.Post("/secrets/getSecrets", middleware.Auth(s.handler.GetSecrets()))
 	})
 	s.Handler = logger.RequestLogger((r.ServeHTTP))
-	var err error
-	// if s.enableHTTPS {
-	// 	err = s.ListenAndServeTLS("server.crt", "server.key")
-	// } else {
-	err = s.ListenAndServe()
-	// }
+	err := s.ListenAndServe()
 	if err != nil {
 		return err
 	}
