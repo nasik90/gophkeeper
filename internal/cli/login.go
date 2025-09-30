@@ -40,12 +40,18 @@ func LoginCommand() *cobra.Command {
 					return fmt.Errorf("ошибка ввода пароля: %w", err)
 				}
 			}
-			appService, _ := app.InitService("")
-			err := appService.Login(context.Background(), username, password)
+			app, err := app.NewApp("")
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
+			err = app.Service.Login(context.Background(), username, password)
 			if err != nil {
 				logger.Log.Fatal("login error", zap.Error(err))
 			}
-
+			err = app.StopApp()
+			if err != nil {
+				logger.Log.Fatal("application stop error", zap.Error(err))
+			}
 			fmt.Println("✅ Аутентификация успешно завершена!")
 			return nil
 		},

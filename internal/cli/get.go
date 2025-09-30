@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoginCommand возвращает команду для входа.
+// GetCommand возвращает команду для получения списка секретов.
 func GetCommand() *cobra.Command {
 	var (
 		masterPassword string
@@ -32,9 +32,11 @@ func GetCommand() *cobra.Command {
 					return fmt.Errorf("ошибка ввода пароля: %w", err)
 				}
 			}
-
-			appService, _ := app.InitService(masterPassword)
-			secrets, err := appService.GetSecrets(context.Background())
+			app, err := app.NewApp(masterPassword)
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
+			secrets, err := app.Service.GetSecrets(context.Background())
 			if err != nil {
 				logger.Log.Fatal("get secrets error", zap.Error(err))
 			}

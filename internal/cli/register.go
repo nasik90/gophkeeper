@@ -51,13 +51,18 @@ func RegisterCommand() *cobra.Command {
 			}
 
 			// Вызов логики регистрации
-			appService, _ := app.InitService("")
-			fmt.Println("appService == nil: ", appService == nil)
-			err := appService.RegisterNewUser(context.Background(), username, password)
+			app, err := app.NewApp("")
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
+			err = app.Service.RegisterNewUser(context.Background(), username, password)
 			if err != nil {
 				logger.Log.Fatal("register error", zap.Error(err))
 			}
-
+			err = app.StopApp()
+			if err != nil {
+				logger.Log.Fatal("application stop error", zap.Error(err))
+			}
 			fmt.Println("✅ Регистрация успешно завершена!")
 			return nil
 		},

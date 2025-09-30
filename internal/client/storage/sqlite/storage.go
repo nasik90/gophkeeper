@@ -41,6 +41,10 @@ func NewStore(conn *sql.DB) (*Store, error) {
 	return s, nil
 }
 
+func (s *Store) Close() error {
+	return s.conn.Close()
+}
+
 // SaveNewSecret сохраняет в БД новую запись.
 func (s *Store) SaveNewSecret(ctx context.Context, secretData *types.SecretData) error {
 	qText := `INSERT INTO secrets (guid, key, value, binary_value, version_id, creation_date, updating_date, deletion_mark, to_send, comment) VALUES(?,?,?,?,?,?,?,?,?,?)`
@@ -166,15 +170,4 @@ func (s *Store) GetDataVersion(ctx context.Context) (time.Time, error) {
 		return dataVersion, row.Err()
 	}
 	return dataVersion, nil
-}
-
-// GetSecretsToken получает из БД токен для шифровки и дешифровки секретов.
-func (s *Store) GetSecretsToken(ctx context.Context) (string, error) {
-
-	return "", nil
-}
-
-// SaveSecretsToken записывает в БД токен для шифровки и дешифровки секретов.
-func (s *Store) SaveSecretsToken(ctx context.Context, token string) error {
-	return nil
 }

@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoginCommand возвращает команду для входа.
+// EditCommand возвращает команду для редактирования секретов.
 func EditCommand() *cobra.Command {
 	var (
 		id             string
@@ -83,13 +83,19 @@ func EditCommand() *cobra.Command {
 				value = []byte(valueS)
 			}
 
-			appService, _ := app.InitService(masterPassword)
+			app, err := app.NewApp(masterPassword)
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
 			secretData := &types.SecretData{Key: []byte(key), Value: value, Comment: comment, BinaryValue: binaryValue}
-			err := appService.EditSecret(context.Background(), secretData)
+			err = app.Service.EditSecret(context.Background(), secretData)
 			if err != nil {
 				logger.Log.Fatal("edit secret error", zap.Error(err))
 			}
-
+			err = app.StopApp()
+			if err != nil {
+				logger.Log.Fatal("application stop error", zap.Error(err))
+			}
 			fmt.Println("✅ Секрет успешно изменен!")
 			return nil
 		},

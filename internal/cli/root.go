@@ -25,6 +25,7 @@ func RootCommand() *cobra.Command {
 	rootCmd.AddCommand(SyncCommand())
 	rootCmd.AddCommand(GetCommand())
 	rootCmd.AddCommand(EditCommand())
+	rootCmd.AddCommand(VersionCommand())
 
 	return rootCmd
 }

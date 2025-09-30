@@ -12,13 +12,24 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func InitService(masterPassword string) (*service.Service, error) {
+var (
+	Version   = "dev"
+	BuildDate = "unknown"
+)
+
+type App struct {
+	Store   service.Store
+	Service *service.Service
+}
+
+func NewApp(masterPassword string) (*App, error) {
 	// Иницилизируем настройки
 	options := parseOptions()
 	if err := logger.Initialize(options.LogLevel); err != nil {
 		panic(err)
 	}
 	// Иницилизируем локальное хранилище
+	//var err error
 	store, err := initStore(options)
 	if err != nil {
 		return nil, err
@@ -26,10 +37,9 @@ func InitService(masterPassword string) (*service.Service, error) {
 	// Иницилизируем API клиент
 	client := initApiCleint(options)
 	// Иницилизируем слой сервиса
-	appService := service.NewService(client, store, masterPassword)
+	service := service.NewService(client, store, masterPassword)
 
-	return appService, err
-
+	return &App{Store: store, Service: service}, err
 }
 
 func parseOptions() *settings.Options {
@@ -39,8 +49,7 @@ func parseOptions() *settings.Options {
 }
 
 func initStore(options *settings.Options) (service.Store, error) {
-	var store *sqlite.Store
-	//var store service.Store
+	var store service.Store
 
 	if options.DatabaseDSN == "" {
 		return store, errors.New("can not initialize store: db settings are empty")
@@ -61,7 +70,6 @@ func initApiCleint(options *settings.Options) *api.Client {
 	return api.NewClient(options.BaseURL)
 }
 
-// TODO: написать остановку
-func StopApp() {
-
+func (a *App) StopApp() error {
+	return a.Store.Close()
 }

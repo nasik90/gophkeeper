@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// TODO теги
 type SecretData struct {
 	Guid         string    `json:"guid"`
 	Key          []byte    `json:"key"`

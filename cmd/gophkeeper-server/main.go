@@ -75,14 +75,6 @@ func runServers(server *server.Server, store service.Store) {
 		}
 	}()
 
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := grpcServer.RunServer(); err != nil {
-	// 		logger.Log.Fatal("run grpc server", zap.Error(err))
-	// 	}
-	// }()
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -97,9 +89,6 @@ func runServers(server *server.Server, store service.Store) {
 		if err := server.StopServer(ctx); err != nil {
 			logger.Log.Error("stop http server", zap.Error(err))
 		}
-
-		// logger.Log.Info("closing grpc server")
-		// grpcServer.StopServer()
 
 		logger.Log.Info("closing the storage")
 		if err := store.Close(); err != nil {

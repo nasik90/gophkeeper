@@ -16,13 +16,12 @@ type Store interface {
 	InsertUpdateSecret(ctx context.Context, secretData *types.SecretData) error
 	GetSecret(ctx context.Context, id int) error
 	GetSecrets(ctx context.Context, toSend bool) (*[]types.SecretData, error)
-	GetSecretsToken(ctx context.Context) (string, error)
-	SaveSecretsToken(ctx context.Context, token string) error
-	SaveDataVersion(ctx context.Context, dataVersion time.Time) error
 	GetDataVersion(ctx context.Context) (time.Time, error)
+	SaveDataVersion(ctx context.Context, dataVersion time.Time) error
+	Close() error
 }
 
-// Service - структура, которая хранит ссылку на репозиторий, апи клиента и каналы для синхронизации с сервером.
+// Service - структура, которая хранит ссылку на репозиторий, апи клиента и ключ для шифрования/дешифрования данных.
 type Service struct {
 	apiCleint *api.Client
 	store     Store
@@ -31,23 +30,18 @@ type Service struct {
 
 // NewService создает экземпляр объекта типа Service.
 func NewService(apiCleint *api.Client, store Store, masterPassword string) *Service {
-	//return &Service{apiCleint: apiCleint, store: store, recordsNew: make(chan types.SecretData), recordsUpd: make(chan types.SecretData)}
 	key := crypto.GenerateKey(masterPassword)
 	return &Service{apiCleint: apiCleint, store: store, key: key}
 }
 
-// Login логиниться.
+// Login для авторизации.
 func (s *Service) Login(ctx context.Context, login, password string) error {
-
 	return s.apiCleint.Login(login, password)
-
 }
 
 // RegisterNewUser для регистрации нового пользователя.
 func (s *Service) RegisterNewUser(ctx context.Context, login, password string) error {
-
 	return s.apiCleint.RegisterNewUser(login, password)
-
 }
 
 // CreateNewSecret создает секрет в локальной БД.
@@ -69,9 +63,7 @@ func (s *Service) CreateNewSecret(ctx context.Context, secretData *types.SecretD
 	if err != nil {
 		return err
 	}
-
 	return nil
-
 }
 
 // EditSecret редактирует секрет в локальной БД.
@@ -117,12 +109,4 @@ func (s *Service) GetSecrets(ctx context.Context) (*[]types.SecretData, error) {
 		(*secrets)[i].Value = decryptedValue
 	}
 	return secrets, err
-}
-
-func (s *Service) GetSecretsToken(ctx context.Context) (string, error) {
-	return s.store.GetSecretsToken(ctx)
-}
-
-func (s *Service) SaveSecretsToken(ctx context.Context, token string) error {
-	return s.store.SaveSecretsToken(ctx, token)
 }

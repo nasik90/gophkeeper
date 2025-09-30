@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoginCommand возвращает команду для входа.
+// SyncCommand возвращает команду для синхронизации данных на клиенте с сервером.
 func SyncCommand() *cobra.Command {
 
 	var SyncCommandCmd = &cobra.Command{
@@ -19,16 +19,22 @@ func SyncCommand() *cobra.Command {
 		Long:  `Синхронизация данных между локальными клиентом и сервером.`,
 		Args:  cobra.ExactArgs(0), // Не принимает аргументов
 		RunE: func(cmd *cobra.Command, args []string) error {
-			appService, _ := app.InitService("")
-			err := appService.SendSecrets(context.Background())
+			app, err := app.NewApp("")
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
+			err = app.Service.SendSecrets(context.Background())
 			if err != nil {
 				logger.Log.Fatal("send secrets error", zap.Error(err))
 			}
-			err = appService.UploadSecrets(context.Background())
+			err = app.Service.UploadSecrets(context.Background())
 			if err != nil {
 				logger.Log.Fatal("upload secrets error", zap.Error(err))
 			}
-
+			err = app.StopApp()
+			if err != nil {
+				logger.Log.Fatal("application stop error", zap.Error(err))
+			}
 			fmt.Println("✅ Синхронизация успешно завершена!")
 			return nil
 		},

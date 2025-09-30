@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoginCommand возвращает команду для входа.
+// CreateCommand возвращает команду для создания секрета.
 func CreateCommand() *cobra.Command {
 	var (
 		key            string
@@ -72,13 +72,19 @@ func CreateCommand() *cobra.Command {
 				value = []byte(valueS)
 			}
 
-			appService, _ := app.InitService(masterPassword)
+			app, err := app.NewApp(masterPassword)
+			if err != nil {
+				logger.Log.Fatal("application initializing error", zap.Error(err))
+			}
 			secretData := &types.SecretData{Key: []byte(key), Value: value, Comment: comment, BinaryValue: binaryValue}
-			err := appService.CreateNewSecret(context.Background(), secretData)
+			err = app.Service.CreateNewSecret(context.Background(), secretData)
 			if err != nil {
 				logger.Log.Fatal("create secret error", zap.Error(err))
 			}
-
+			err = app.StopApp()
+			if err != nil {
+				logger.Log.Fatal("application stop error", zap.Error(err))
+			}
 			fmt.Println("✅ Секрет успешно создан!")
 			return nil
 		},
